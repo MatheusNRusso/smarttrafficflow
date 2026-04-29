@@ -1,0 +1,118 @@
+# ========================
+# Node / Angular
+# ========================
+node_modules/
+dist/
+.angular/
+.tmp/
+.temp/
+.cache/
+coverage/
+
+# Angular environment
+src/environments/*.ts
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# ========================
+# Java / Spring Boot
+# ========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+HELP.md
+
+# Maven / Gradle
+.mvn/
+.gradle/
+build/
+
+# ========================
+# Environment variables
+# ========================
+.env
+.env.local
+.env.*.local
+
+# ========================
+# IDE / Editor
+# ========================
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# ========================
+# OS files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# Temporary / misc
+# ========================
+*.pid
+*.seed
+*.pid.lock
+*.tmp
+
+# ========================
+# Optional datasets / backups
+# ========================
+*.json.bak
+*.csv.bak
+*.sql.bak
+
+# ========================
+# Data directories
+# ========================
+# Ignore only the top-level data/ folder (project root) — NOT backend resources
+/data/
+/data/raw/
+/data/processed/
+/data/clean/
+/notebooks/
+
+# ========================
+# Large datasets
+# ========================
+*.csv
+*.geojson
+*.json
+
+# Exception — stops JSON is required for production deploy
+# Must come AFTER *.json rule to override it
+!backend/traffic-insight/src/main/resources/data/lines_with_stops_vfinal.json
+
+# ========================
+# Spring local config — never commit credentials
+# ========================
+application-local.yaml
+backend/**/application-local.yaml
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ========================
+# Scripts descartáveis
+# ========================
+scripts/clean_dataset.py
+scripts/lines_stops.py
+scripts/generate_enriched_dataset.py!backend/traffic-insight/.mvn/
+!backend/traffic-insight/src/main/resources/static/manifest.json

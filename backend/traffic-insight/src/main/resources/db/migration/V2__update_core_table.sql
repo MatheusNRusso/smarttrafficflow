@@ -1,0 +1,4 @@
+ALTER TABLE traffic_records
+ALTER COLUMN traffic_level TYPE VARCHAR(20),
+    ALTER COLUMN day_of_week TYPE VARCHAR(20),
+    ALTER COLUMN weather TYPE VARCHAR(50);

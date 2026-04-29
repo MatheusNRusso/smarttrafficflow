@@ -1,0 +1,17 @@
+<!-- js/core/icon-stop.svg -->
+<!-- Stop icon optimized for Deck.gl IconLayer -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Pin shape -->
+  <path d="M24 0C15.163 0 8 7.163 8 16c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z"
+        fill="#3498db"
+        stroke="#ffffff"
+        stroke-width="2"/>
+
+  <!-- Center circle -->
+  <circle cx="24" cy="16" r="8" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Bus symbol in center -->
+  <rect x="20" y="12" width="8" height="6" rx="1" fill="#3498db"/>
+  <circle cx="22" cy="20" r="1.5" fill="#3498db"/>
+  <circle cx="26" cy="20" r="1.5" fill="#3498db"/>
+</svg>

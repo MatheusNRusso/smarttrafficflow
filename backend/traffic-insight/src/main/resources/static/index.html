@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SmartTrafficFlow — Real-time Bus Traffic Visualization, Rio de Janeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0e14;
+    --bg-2:#0e131b;
+    --bg-3:#131a23;
+    --line:#1c2530;
+    --line-2:#283342;
+    --text:#e6edf3;
+    --text-2:#9aa7b4;
+    --text-3:#5b6776;
+    --accent:#2980b9;
+    --accent-2:#3aa3e0;
+    --accent-glow:rgba(41,128,185,.35);
+    --warn:#e67e22;
+    --ok:#27ae60;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    backdrop-filter:blur(12px);
+    background:rgba(10,14,20,.7);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    max-width:1280px;margin:0 auto;
+    padding:14px 32px;
+    display:flex;align-items:center;justify-content:space-between;gap:32px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em}
+  .brand-mark{
+    width:24px;height:24px;border-radius:6px;
+    background:radial-gradient(circle at 30% 30%,var(--accent-2),var(--accent) 70%);
+    position:relative;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(58,163,224,.4),0 0 20px var(--accent-glow);
+  }
+  .brand-mark::before,.brand-mark::after{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(transparent 49%, rgba(255,255,255,.25) 50%, transparent 51%) 0 0/100% 7px,
+      linear-gradient(90deg, transparent 49%, rgba(255,255,255,.25) 50%, transparent 51%) 0 0/7px 100%;
+    opacity:.6;
+  }
+  .brand-mark::after{
+    background:radial-gradient(circle at 65% 65%, #fff 0 2px, transparent 3px);
+  }
+  .nav-links{display:flex;gap:28px;font-size:14px;color:var(--text-2)}
+  .nav-links a:hover{color:var(--text)}
+  .nav-cta{
+    font-size:13px;padding:8px 14px;border:1px solid var(--line-2);
+    border-radius:6px;color:var(--text);
+    transition:all .15s ease;
+  }
+  .nav-cta:hover{border-color:var(--accent);background:rgba(41,128,185,.08)}
+  @media(max-width:720px){ .nav-links{display:none} }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    padding:140px 32px 100px;
+    overflow:hidden;
+    min-height:88vh;
+    display:flex;align-items:center;
+  }
+  .hero-bg{
+    position:absolute;inset:0;z-index:0;
+    background:
+      radial-gradient(ellipse 80% 60% at 70% 30%, rgba(41,128,185,.18), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 20% 80%, rgba(41,128,185,.08), transparent 60%),
+      var(--bg);
+  }
+  .hero-grid{
+    position:absolute;inset:0;z-index:1;
+    background-image:
+      linear-gradient(rgba(40,51,66,.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(40,51,66,.4) 1px, transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(ellipse 90% 70% at 50% 40%, #000 30%, transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 40%, #000 30%, transparent 75%);
+  }
+  /* Map svg sits on top of grid */
+  .hero-map{
+    position:absolute;inset:0;z-index:1;
+    width:100%;height:100%;
+    opacity:.55;
+    mask-image:linear-gradient(to bottom, transparent 0%, #000 25%, #000 75%, transparent 100%),
+               linear-gradient(to right, transparent 0%, #000 15%, #000 85%, transparent 100%);
+    -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 25%, #000 75%, transparent 100%);
+    mask-composite:intersect;
+    pointer-events:none;
+  }
+  .hero-content{position:relative;z-index:2;max-width:1280px;margin:0 auto;width:100%}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:10px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--accent-2);
+    padding:6px 12px;border:1px solid rgba(58,163,224,.3);
+    border-radius:100px;background:rgba(41,128,185,.08);
+    margin-bottom:28px;
+  }
+  .eyebrow .dot{
+    width:6px;height:6px;border-radius:50%;background:var(--accent-2);
+    box-shadow:0 0 8px var(--accent-2);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.4;transform:scale(.7)}
+  }
+  h1.hero-title{
+    font-size:clamp(40px,6.4vw,84px);
+    line-height:1.02;letter-spacing:-.035em;
+    font-weight:600;
+    margin:0 0 24px;
+    max-width:14ch;
+  }
+  h1.hero-title .accent{
+    background:linear-gradient(180deg,var(--accent-2),var(--accent));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  h1.hero-title .strike{
+    display:block;
+    font-size:.6em;color:var(--text-2);font-weight:400;
+    letter-spacing:-.02em;margin-top:4px;
+  }
+  .hero-sub{
+    font-size:clamp(16px,1.4vw,19px);
+    color:var(--text-2);max-width:54ch;
+    margin:0 0 40px;
+  }
+  .hero-sub .num{color:var(--text);font-weight:500}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:14px 22px;border-radius:8px;
+    font-size:15px;font-weight:500;
+    transition:all .15s ease;
+    cursor:pointer;border:none;
+    font-family:inherit;
+  }
+  .btn-primary{
+    background:var(--accent);color:#fff;
+    box-shadow:0 0 0 1px rgba(58,163,224,.4),0 8px 24px -8px var(--accent-glow);
+  }
+  .btn-primary:hover{
+    background:var(--accent-2);
+    transform:translateY(-1px);
+    box-shadow:0 0 0 1px rgba(58,163,224,.5),0 12px 32px -8px var(--accent-glow);
+  }
+  .btn-secondary{
+    background:transparent;color:var(--text);
+    border:1px solid var(--line-2);
+  }
+  .btn-secondary:hover{border-color:var(--accent);background:rgba(41,128,185,.06)}
+  .btn .arrow{transition:transform .15s ease}
+  .btn:hover .arrow{transform:translateX(3px)}
+
+  /* Hero stats strip */
+  .hero-stats{
+    margin-top:72px;
+    display:grid;grid-template-columns:repeat(4,1fr);
+    border-top:1px solid var(--line);
+    padding-top:32px;gap:8px;
+  }
+  .stat .v{font-size:28px;font-weight:600;letter-spacing:-.02em}
+  .stat .v .unit{color:var(--text-3);font-weight:400;font-size:.7em;margin-left:4px}
+  .stat .l{font-size:12px;color:var(--text-3);margin-top:4px;
+    font-family:'JetBrains Mono',monospace;letter-spacing:.04em;text-transform:uppercase}
+  @media(max-width:720px){
+    .hero-stats{grid-template-columns:repeat(2,1fr);gap:24px}
+  }
+
+  /* ---------- SECTION ---------- */
+  section{position:relative}
+  .section{padding:120px 32px;max-width:1280px;margin:0 auto}
+  .section-head{margin-bottom:64px;max-width:680px}
+  .section-eyebrow{
+    font-family:'JetBrains Mono',monospace;font-size:12px;
+    letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent-2);margin-bottom:16px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .section-eyebrow::before{
+    content:"";width:24px;height:1px;background:var(--accent);
+  }
+  h2.section-title{
+    font-size:clamp(32px,4vw,48px);
+    line-height:1.05;letter-spacing:-.03em;font-weight:600;
+    margin:0 0 16px;
+  }
+  .section-desc{color:var(--text-2);font-size:17px;max-width:50ch}
+
+  /* ---------- FEATURES ---------- */
+  .features{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:12px;overflow:hidden;
+  }
+  .feature{
+    background:var(--bg-2);
+    padding:36px 32px;
+    display:flex;flex-direction:column;gap:20px;
+    transition:background .2s ease;
+    position:relative;
+  }
+  .feature:hover{background:var(--bg-3)}
+  .feature-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;color:var(--text-3);letter-spacing:.08em;
+  }
+  .feature-icon{
+    width:56px;height:56px;border-radius:10px;
+    background:rgba(41,128,185,.08);
+    border:1px solid rgba(41,128,185,.25);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent-2);
+  }
+  .feature h3{
+    font-size:22px;font-weight:600;letter-spacing:-.015em;
+    margin:0;
+  }
+  .feature p{color:var(--text-2);margin:0;font-size:15px}
+  .feature-meta{
+    margin-top:auto;padding-top:20px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;
+    color:var(--text-3);
+    display:flex;align-items:center;gap:8px;
+  }
+  .feature-meta .pill{
+    padding:3px 8px;border-radius:4px;
+    background:rgba(41,128,185,.1);color:var(--accent-2);
+    border:1px solid rgba(41,128,185,.2);
+  }
+  @media(max-width:880px){
+    .features{grid-template-columns:1fr}
+  }
+
+  /* ---------- TECH STACK ---------- */
+  .stack-wrap{
+    border:1px solid var(--line);
+    border-radius:12px;background:var(--bg-2);
+    padding:36px;
+  }
+  .stack-row{
+    display:flex;flex-wrap:wrap;gap:10px;
+  }
+  .badge{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:10px 16px;border-radius:8px;
+    background:var(--bg-3);
+    border:1px solid var(--line-2);
+    font-size:14px;font-weight:500;
+    transition:all .15s ease;
+  }
+  .badge:hover{border-color:var(--accent);background:rgba(41,128,185,.06)}
+  .badge .glyph{
+    width:20px;height:20px;display:inline-flex;
+    align-items:center;justify-content:center;
+  }
+  .stack-caption{
+    color:var(--text-3);font-family:'JetBrains Mono',monospace;
+    font-size:12px;letter-spacing:.05em;
+    margin-bottom:20px;display:flex;align-items:center;gap:10px;
+  }
+  .stack-caption::after{
+    content:"";flex:1;height:1px;background:var(--line);
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:48px 32px 32px;
+    margin-top:60px;
+    background:var(--bg-2);
+  }
+  .foot-inner{
+    max-width:1280px;margin:0 auto;
+    display:flex;justify-content:space-between;
+    flex-wrap:wrap;gap:24px;align-items:flex-start;
+  }
+  .foot-brand{max-width:380px}
+  .foot-tag{
+    color:var(--text-3);font-size:14px;margin-top:14px;
+    line-height:1.6;
+  }
+  .foot-right{display:flex;gap:24px;align-items:center}
+  .foot-link{
+    display:inline-flex;align-items:center;gap:8px;
+    color:var(--text-2);font-size:14px;
+    padding:10px 14px;border-radius:8px;
+    border:1px solid var(--line-2);
+    transition:all .15s ease;
+  }
+  .foot-link:hover{color:var(--text);border-color:var(--accent)}
+  .foot-bottom{
+    max-width:1280px;margin:32px auto 0;padding-top:24px;
+    border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-3);
+    letter-spacing:.04em;
+  }
+
+  /* ---------- ANIMATED MAP DASHED ROUTES ---------- */
+  .route{
+    fill:none;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .route-bg{stroke:rgba(40,51,66,.6);stroke-width:1.2}
+  .route-fg{
+    stroke:var(--accent-2);stroke-width:1.4;
+    stroke-dasharray:6 8;
+    animation:flow 4s linear infinite;
+    filter:drop-shadow(0 0 4px rgba(58,163,224,.5));
+  }
+  .route-fg.alt{stroke:#e67e22;animation-duration:5s;animation-direction:reverse}
+  .route-fg.alt2{stroke:#27ae60;animation-duration:6s}
+  @keyframes flow{
+    to{stroke-dashoffset:-140}
+  }
+  .stop{fill:var(--bg);stroke:var(--accent-2);stroke-width:1.4}
+  .stop.alt{stroke:#e67e22}
+  .stop.alt2{stroke:#27ae60}
+  .bus{
+    fill:var(--accent-2);
+    filter:drop-shadow(0 0 6px var(--accent-2));
+  }
+  .bus.alt{fill:#e67e22;filter:drop-shadow(0 0 6px #e67e22)}
+  .bus.alt2{fill:#27ae60;filter:drop-shadow(0 0 6px #27ae60)}
+
+  @keyframes ride1 { to { offset-distance:100% } }
+  .bus-1{ offset-path:path('M 60 480 C 180 360, 320 420, 460 320 S 720 200, 900 280 S 1180 360, 1340 240'); offset-distance:0%; animation:ride1 14s linear infinite; }
+  .bus-2{ offset-path:path('M 1380 540 C 1240 460, 1080 520, 920 460 S 640 380, 460 480 S 200 580, 60 540'); offset-distance:0%; animation:ride1 18s linear infinite; }
+  .bus-3{ offset-path:path('M 200 120 C 320 200, 480 160, 600 240 S 880 360, 1040 300 S 1280 200, 1380 280'); offset-distance:0%; animation:ride1 22s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- ============== NAV ============== -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="brand">
+      <div class="brand-mark"></div>
+      <span>SmartTrafficFlow</span>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#stack">Stack</a>
+      <a href="#data">Data</a>
+      <a href="https://github.com/MatheusNRusso/smarttrafficflow" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <a href="/index-3d.html" class="nav-cta">Open the map →</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <!-- animated map svg -->
+  <svg class="hero-map" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <!-- coastline-ish curves (decorative) -->
+    <path d="M 0 540 C 200 480, 380 560, 560 500 S 940 420, 1120 480 S 1340 540, 1440 500" fill="none" stroke="rgba(40,51,66,.7)" stroke-width="1"/>
+    <path d="M 0 80 C 180 140, 360 60, 540 110 S 900 180, 1100 120 S 1340 60, 1440 100" fill="none" stroke="rgba(40,51,66,.7)" stroke-width="1"/>
+
+    <!-- background routes -->
+    <path class="route route-bg" d="M 60 480 C 180 360, 320 420, 460 320 S 720 200, 900 280 S 1180 360, 1340 240"/>
+    <path class="route route-bg" d="M 1380 540 C 1240 460, 1080 520, 920 460 S 640 380, 460 480 S 200 580, 60 540"/>
+    <path class="route route-bg" d="M 200 120 C 320 200, 480 160, 600 240 S 880 360, 1040 300 S 1280 200, 1380 280"/>
+
+    <!-- foreground animated routes -->
+    <path class="route route-fg" d="M 60 480 C 180 360, 320 420, 460 320 S 720 200, 900 280 S 1180 360, 1340 240"/>
+    <path class="route route-fg alt" d="M 1380 540 C 1240 460, 1080 520, 920 460 S 640 380, 460 480 S 200 580, 60 540"/>
+    <path class="route route-fg alt2" d="M 200 120 C 320 200, 480 160, 600 240 S 880 360, 1040 300 S 1280 200, 1380 280"/>
+
+    <!-- stops -->
+    <g>
+      <circle class="stop" cx="180" cy="416" r="3.5"/>
+      <circle class="stop" cx="460" cy="320" r="3.5"/>
+      <circle class="stop" cx="720" cy="240" r="3.5"/>
+      <circle class="stop" cx="900" cy="280" r="3.5"/>
+      <circle class="stop" cx="1180" cy="320" r="3.5"/>
+
+      <circle class="stop alt" cx="1240" cy="490" r="3.5"/>
+      <circle class="stop alt" cx="920" cy="460" r="3.5"/>
+      <circle class="stop alt" cx="640" cy="420" r="3.5"/>
+      <circle class="stop alt" cx="460" cy="480" r="3.5"/>
+
+      <circle class="stop alt2" cx="320" cy="180" r="3.5"/>
+      <circle class="stop alt2" cx="600" cy="240" r="3.5"/>
+      <circle class="stop alt2" cx="880" cy="340" r="3.5"/>
+      <circle class="stop alt2" cx="1040" cy="300" r="3.5"/>
+    </g>
+
+    <!-- moving buses (dot + halo) -->
+    <g class="bus bus-1"><circle r="5"/><circle r="10" fill="none" stroke="var(--accent-2)" stroke-width=".8" opacity=".4"/></g>
+    <g class="bus alt bus-2"><circle r="5"/><circle r="10" fill="none" stroke="#e67e22" stroke-width=".8" opacity=".4"/></g>
+    <g class="bus alt2 bus-3"><circle r="5"/><circle r="10" fill="none" stroke="#27ae60" stroke-width=".8" opacity=".4"/></g>
+  </svg>
+
+  <div class="hero-content">
+    <div class="eyebrow"><span class="dot"></span>Live · Rio de Janeiro · 22.9°S 43.2°W</div>
+
+    <h1 class="hero-title">
+      Real-time bus traffic<br/>
+      <span class="accent">visualization</span>
+      <span class="strike">— for the city of Rio de Janeiro.</span>
+    </h1>
+
+    <p class="hero-sub">
+      <span class="num">511</span> bus lines. <span class="num">60,000</span> stops.
+      Real data streamed from the Prefeitura do Rio de Janeiro, rendered in your browser as an interactive geospatial canvas.
+    </p>
+
+    <div class="cta-row">
+      <a href="/index-3d.html" class="btn btn-primary">
+        View 3D Map
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+      <a href="/index-2d.html" class="btn btn-secondary">
+        View 2D Map
+        <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="v">511<span class="unit">lines</span></div>
+        <div class="l">Active routes</div>
+      </div>
+      <div class="stat">
+        <div class="v">60k<span class="unit">stops</span></div>
+        <div class="l">Indexed bus stops</div>
+      </div>
+      <div class="stat">
+        <div class="v">~6.7M<span class="unit">trips/day</span></div>
+        <div class="l">Daily ridership (est.)</div>
+      </div>
+      <div class="stat">
+        <div class="v">&lt; 30s<span class="unit">latency</span></div>
+        <div class="l">Live update window</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== FEATURES ============== -->
+<section id="features" class="section">
+  <div class="section-head">
+    <div class="section-eyebrow">What it does</div>
+    <h2 class="section-title">Three lenses on the same city.</h2>
+    <p class="section-desc">From a single bus moving stop-by-stop to a city-wide congestion view, SmartTrafficFlow surfaces the same dataset at every scale.</p>
+  </div>
+
+  <div class="features">
+    <!-- 1 -->
+    <article class="feature">
+      <div class="feature-num">01 / animation</div>
+      <div class="feature-icon">
+        <!-- bus + path icon -->
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18 C 6 14, 9 14, 12 12 S 18 6, 21 6" stroke-dasharray="2 2"/>
+          <circle cx="3" cy="18" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="21" cy="6" r="1.5" fill="currentColor"/>
+        </svg>
+      </div>
+      <h3>Stop-by-stop animation</h3>
+      <p>Each bus follows its real route geometry, easing between stops so you can watch a line breathe across the network in real time.</p>
+      <div class="feature-meta">
+        <span class="pill">GTFS-RT</span> · interpolated · 60 fps
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="feature">
+      <div class="feature-num">02 / planner</div>
+      <div class="feature-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="2"/>
+          <circle cx="18" cy="18" r="2"/>
+          <path d="M6 8 V 14 a 2 2 0 0 0 2 2 H 16" stroke-dasharray="3 2"/>
+        </svg>
+      </div>
+      <h3>A → B route planner</h3>
+      <p>Drop two pins anywhere in the metro. We resolve the bus lines that connect them, ranked by travel time, transfers and live load.</p>
+      <div class="feature-meta">
+        <span class="pill">graph search</span> · multi-modal · &lt; 200 ms
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="feature">
+      <div class="feature-num">03 / insights</div>
+      <div class="feature-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17 L 8 12 L 12 14 L 16 8 L 21 11"/>
+          <path d="M3 21 H 21" opacity=".5"/>
+          <path d="M3 5 V 21" opacity=".5"/>
+        </svg>
+      </div>
+      <h3>Traffic insights</h3>
+      <p>Heatmaps and corridor-level metrics expose where the network is congested, where buses bunch, and where headways break down.</p>
+      <div class="feature-meta">
+        <span class="pill">live</span> · congestion index · per-corridor
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============== TECH STACK ============== -->
+<section id="stack" class="section" style="padding-top:40px">
+  <div class="section-head">
+    <div class="section-eyebrow">Built with</div>
+    <h2 class="section-title">A stack tuned for streaming geospatial data.</h2>
+  </div>
+
+  <div class="stack-wrap">
+    <div class="stack-caption">// runtime + data + rendering</div>
+    <div class="stack-row">
+
+      <!-- Java -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f0a04b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 17 c -1 1 -1 3 3 3 s 5 -1 4 -3"/>
+            <path d="M8 13 c 0 2 8 2 8 0"/>
+            <path d="M12 3 c 2 3 -2 4 0 7"/>
+            <path d="M15 5 c 1 2 -1 3 0 5"/>
+          </svg>
+        </span>
+        Java
+      </span>
+
+      <!-- Spring Boot -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6db33f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 a 9 9 0 1 0 9 9"/>
+            <path d="M12 3 v 6"/>
+            <circle cx="18" cy="6" r="1.6" fill="#6db33f" stroke="none"/>
+          </svg>
+        </span>
+        Spring Boot
+      </span>
+
+      <!-- PostgreSQL -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3aa3e0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="8" ry="2.2"/>
+            <path d="M4 5 v 6 c 0 1.2 3.6 2.2 8 2.2 s 8 -1 8 -2.2 V 5"/>
+            <path d="M4 11 v 6 c 0 1.2 3.6 2.2 8 2.2 s 8 -1 8 -2.2 v -6"/>
+          </svg>
+        </span>
+        PostgreSQL
+        <span style="color:var(--text-3);font-size:12px" class="mono">+ PostGIS</span>
+      </span>
+
+      <!-- Deck.gl -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9b59b6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 L 21 8 L 12 13 L 3 8 Z"/>
+            <path d="M3 12 L 12 17 L 21 12"/>
+            <path d="M3 16 L 12 21 L 21 16"/>
+          </svg>
+        </span>
+        Deck.gl
+      </span>
+
+      <!-- MapLibre -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6 L 9 4 L 15 6 L 21 4 V 18 L 15 20 L 9 18 L 3 20 Z"/>
+            <path d="M9 4 V 18 M 15 6 V 20"/>
+          </svg>
+        </span>
+        MapLibre
+      </span>
+
+      <!-- Leaflet -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 4 c -8 1 -14 7 -15 15 c 8 -1 14 -7 15 -15 Z"/>
+            <path d="M4 19 L 12 12"/>
+          </svg>
+        </span>
+        Leaflet
+      </span>
+
+      <!-- Python -->
+      <span class="badge">
+        <span class="glyph">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f1c40f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3 c -3 0 -5 1 -5 3 v 3 h 5 m -5 0 c -3 0 -5 1 -5 4 v 2 c 0 3 2 4 5 4 h 1"/>
+            <path d="M12 21 c 3 0 5 -1 5 -3 v -3 h -5 m 5 0 c 3 0 5 -1 5 -4 v -2 c 0 -3 -2 -4 -5 -4 h -1"/>
+            <circle cx="9" cy="6" r=".6" fill="#f1c40f" stroke="none"/>
+            <circle cx="15" cy="18" r=".6" fill="#f1c40f" stroke="none"/>
+          </svg>
+        </span>
+        Python
+      </span>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============== DATA STRIP ============== -->
+<section id="data" class="section" style="padding-top:60px;padding-bottom:120px">
+  <div style="border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,var(--bg-2),var(--bg));padding:48px;display:grid;grid-template-columns:1.4fr 1fr;gap:48px;align-items:center">
+    <div>
+      <div class="section-eyebrow">Open data</div>
+      <h2 class="section-title" style="font-size:32px">Built on what the city already publishes.</h2>
+      <p class="section-desc" style="margin-top:12px">
+        SmartTrafficFlow consumes the public GTFS and live AVL feeds released by the Prefeitura do Rio de Janeiro — no scraping, no proprietary dataset. Reproducible by design.
+      </p>
+      <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">
+        <a href="#" class="badge" style="border-color:var(--accent)">↗ data.rio</a>
+        <a href="#" class="badge">GTFS schedule</a>
+        <a href="#" class="badge">GTFS-RT vehicle positions</a>
+      </div>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--text-2);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:20px;line-height:1.7">
+<span style="color:var(--text-3)">// stream</span><br/>
+<span style="color:var(--accent-2)">GET</span> /v1/vehicles?live=true<br/>
+&nbsp;&nbsp;<span style="color:var(--text-3)">→ 511 lines · 4,200+ vehicles</span><br/><br/>
+<span style="color:var(--text-3)">// average</span><br/>
+sample_rate&nbsp;&nbsp;= <span style="color:#f1c40f">15s</span><br/>
+update_window = <span style="color:#f1c40f">&lt; 30s</span><br/>
+projection&nbsp;&nbsp;&nbsp;= <span style="color:#27ae60">EPSG:3857</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer>
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <a href="#" class="brand">
+        <div class="brand-mark"></div>
+        <span>SmartTrafficFlow</span>
+      </a>
+      <p class="foot-tag">Built with real open data from <strong style="color:var(--text-2)">Prefeitura do Rio de Janeiro</strong>. An independent visualization, not affiliated with the city government.</p>
+    </div>
+    <div class="foot-right">
+      <a href="https://github.com/MatheusNRusso/smarttrafficflow" target="_blank" rel="noopener" class="foot-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5 C 5.65 .5 .5 5.65 .5 12 c 0 5.08 3.29 9.39 7.86 10.91 c .57 .1 .79 -.25 .79 -.55 c 0 -.27 -.01 -1 -.02 -1.96 c -3.2 .69 -3.87 -1.54 -3.87 -1.54 c -.52 -1.32 -1.27 -1.67 -1.27 -1.67 c -1.04 -.71 .08 -.7 .08 -.7 c 1.15 .08 1.76 1.18 1.76 1.18 c 1.02 1.75 2.69 1.24 3.34 .95 c .1 -.74 .4 -1.24 .73 -1.53 c -2.55 -.29 -5.24 -1.28 -5.24 -5.69 c 0 -1.26 .45 -2.29 1.18 -3.1 c -.12 -.29 -.51 -1.46 .11 -3.04 c 0 0 .96 -.31 3.16 1.18 c .92 -.26 1.9 -.38 2.88 -.39 c .98 .01 1.96 .13 2.88 .39 c 2.2 -1.49 3.16 -1.18 3.16 -1.18 c .62 1.58 .23 2.75 .11 3.04 c .73 .81 1.18 1.84 1.18 3.1 c 0 4.42 -2.69 5.39 -5.25 5.68 c .41 .35 .78 1.05 .78 2.12 c 0 1.53 -.01 2.77 -.01 3.15 c 0 .31 .21 .66 .8 .55 C 20.21 21.39 23.5 17.08 23.5 12 C 23.5 5.65 18.35 .5 12 .5 Z"/>
+        </svg>
+        GitHub
+      </a>
+      <a href="#" class="foot-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+        Documentation
+      </a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 SmartTrafficFlow · MIT License</span>
+    <span>Made for Rio · 22.9068° S, 43.1729° W</span>
+  </div>
+</footer>
+
+</body>
+</html>
